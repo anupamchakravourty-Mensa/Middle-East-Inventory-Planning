@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>ME Inventory — Control Tower</title>
+<style>
+:root{
+  --bg:#f6f7fb; --card:#fff; --ink:#1b2030; --muted:#6b7280; --line:#e6e9f0;
+  --accent:#0f766e; --accent2:#0e7490; --warn:#b45309; --bad:#dc2626; --good:#047857; --amber-bg:#fff7ed;
+  --oos:#dc2626; --reorder:#b45309; --over:#7c3aed; --healthy:#047857; --nodemand:#9ca3af;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#0f1218; --card:#171b24; --ink:#e7eaf1; --muted:#9aa2b1; --line:#262c38;
+  --accent:#2dd4bf; --accent2:#22d3ee; --amber-bg:#2a2012;}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+.top{position:sticky;top:0;z-index:10;background:var(--card);border-bottom:1px solid var(--line);padding:12px 20px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:10px}
+.logo{width:34px;height:34px;border-radius:9px;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px}
+h1{font-size:15px;margin:0;letter-spacing:-.01em}
+.sub{font-size:12px;color:var(--muted);margin-top:1px}
+.grow{flex:1}
+button,select,input{font:inherit;color:var(--ink)}
+.btn{border:1px solid var(--line);background:var(--card);border-radius:8px;padding:7px 12px;cursor:pointer;font-weight:600;font-size:13px}
+.btn:hover{border-color:var(--accent)}
+.tabs{display:flex;gap:4px;padding:0 20px;background:var(--card);border-bottom:1px solid var(--line);overflow-x:auto}
+.tab{border:none;background:none;padding:11px 14px;cursor:pointer;color:var(--muted);font-weight:600;font-size:13px;border-bottom:2px solid transparent;white-space:nowrap}
+.tab.active{color:var(--ink);border-bottom-color:var(--accent)}
+.filters{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:12px 20px;background:var(--bg);border-bottom:1px solid var(--line)}
+.filters label{font-size:11px;color:var(--muted);display:flex;flex-direction:column;gap:3px}
+.filters select,.filters input{border:1px solid var(--line);background:var(--card);border-radius:7px;padding:6px 8px;font-size:13px}
+main{padding:18px 20px 60px;max-width:1400px;margin:0 auto}
+.view{display:none}.view.active{display:block}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:18px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+.kpi .n{font-size:26px;font-weight:700;letter-spacing:-.02em}
+.kpi .l{font-size:12px;color:var(--muted);margin-top:2px}
+.kpi .s{font-size:11px;color:var(--muted);margin-top:4px}
+.kpi.bad .n{color:var(--bad)} .kpi.warn .n{color:var(--warn)} .kpi.over .n{color:var(--over)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:0;margin-bottom:16px;overflow:hidden}
+.card-h{padding:12px 16px;border-bottom:1px solid var(--line);font-weight:700;font-size:13px;display:flex;align-items:center;gap:8px}
+.card-h .cnt{color:var(--muted);font-weight:500}
+.tbl-wrap{overflow:auto;max-height:70vh}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th{position:sticky;top:0;background:var(--card);text-align:right;padding:8px 10px;border-bottom:1px solid var(--line);color:var(--muted);font-weight:600;white-space:nowrap;cursor:pointer;user-select:none}
+th.l,td.l{text-align:left}
+td{padding:7px 10px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+tr:hover td{background:rgba(125,125,125,.05)}
+.name{max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pill{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600}
+.p-OOS{background:rgba(220,38,38,.12);color:var(--bad)}
+.p-Reorder{background:rgba(180,83,9,.14);color:var(--warn)}
+.p-Overstock{background:rgba(124,58,237,.14);color:var(--over)}
+.p-Healthy{background:rgba(4,120,87,.14);color:var(--good)}
+.p-No.demand,.p-Nodemand{background:rgba(156,163,175,.18);color:var(--nodemand)}
+.tag{font-size:10px;color:var(--muted);font-weight:700}
+.commit-now{color:var(--bad);font-weight:700}
+.muted{color:var(--muted)}
+.empty{padding:40px;text-align:center;color:var(--muted)}
+.bar{height:8px;border-radius:5px;background:var(--line);overflow:hidden;display:flex}
+.bar>span{height:100%}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:var(--muted);margin-top:8px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;vertical-align:-1px}
+.err{background:var(--amber-bg);border:1px solid var(--warn);color:var(--ink);padding:14px 16px;border-radius:10px;margin-bottom:16px;font-size:13px}
+code{background:rgba(125,125,125,.12);padding:1px 5px;border-radius:4px;font-size:12px}
+</style>
+</head>
+<body>
+<div class="top">
+  <div class="brand"><div class="logo">↯</div><div><h1>ME Inventory — Control Tower</h1><div class="sub" id="asof">loading…</div></div></div>
+  <div class="grow"></div>
+  <button class="btn" id="refresh">↻ Refresh</button>
+</div>
+<div class="tabs" id="tabs"></div>
+<div class="filters" id="filters"></div>
+<main id="main"><div class="empty">Loading live data…</div></main>
+
+<script>
+// ------- CONFIG -------
+const ENDPOINT = "https://script.google.com/macros/s/AKfycbz8wbFeHsDVQIXCk_2QSBukqVW1RxGxTCbsC-cvWlnfP2AJ8A8lL4fZKtgFpnDXtbYH/exec";
+
+let DATA=null, FILT={brand:"",geo:"",status:"",q:""}, TAB="overview", SORT={key:null,dir:-1};
+const num=n=> (n==null||n==="")?"—":(typeof n==="number"?n.toLocaleString(undefined,{maximumFractionDigits:1}):n);
+const esc=s=> (s==null?"":String(s)).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+const TABS=[["overview","Overview"],["inventory","Inventory & Position"],["reorder","Reorder & Arrivals"],["allocation","Hub → Channel"],["overstock","Overstock & Aging"]];
+
+async function load(){
+  document.getElementById("main").innerHTML='<div class="empty">Loading live data…</div>';
+  try{
+    const r=await fetch(ENDPOINT,{redirect:"follow"});
+    DATA=await r.json();
+    if(DATA.error) throw new Error(DATA.error);
+    document.getElementById("asof").textContent="as of "+(DATA.as_of||"—");
+    render();
+  }catch(e){
+    document.getElementById("main").innerHTML='<div class="err"><b>Couldn\'t load the live endpoint.</b><br>'+esc(e.message)+
+      '<br><br>If this is a CORS/redirect block in the browser, it usually works once hosted (Vercel) rather than opened as a local file. '+
+      'Confirm the pipeline has run (so <code>_api_dashboard_data</code> is filled) and the web-app is deployed with access “Anyone”.</div>';
+  }
+}
+function allRows(){return (DATA&&DATA.inventory)||[];}
+function brands(){return [...new Set(allRows().map(r=>r.brand).filter(Boolean))].sort();}
+function pass(r){
+  if(FILT.brand && r.brand!==FILT.brand) return false;
+  if(FILT.geo && r.geo!==FILT.geo) return false;
+  if(FILT.status && r.status!==FILT.status) return false;
+  if(FILT.q){const q=FILT.q.toLowerCase(); if(!((r.iid||"").toLowerCase().includes(q)||(r.name||"").toLowerCase().includes(q))) return false;}
+  return true;
+}
+function sortRows(rows){
+  if(!SORT.key) return rows;
+  return [...rows].sort((a,b)=>{let x=a[SORT.key],y=b[SORT.key];x=x==null?-Infinity:x;y=y==null?-Infinity:y;
+    if(typeof x==="string"||typeof y==="string"){x=String(x);y=String(y);return x<y?-SORT.dir:x>y?SORT.dir:0;}
+    return (x-y)*SORT.dir;});
+}
+function th(cols){return "<tr>"+cols.map(c=>`<th class="${c.l?'l':''}" data-k="${c.k||''}">${c.t}</th>`).join("")+"</tr>";}
+function pillCls(s){return "p-"+String(s).replace(/\s+/g,"");}
+
+function render(){
+  // tabs
+  document.getElementById("tabs").innerHTML=TABS.map(([k,t])=>`<button class="tab ${k===TAB?'active':''}" data-t="${k}">${t}</button>`).join("");
+  // filters
+  const b=brands();
+  document.getElementById("filters").innerHTML=`
+    <label>Brand<select id="f-brand"><option value="">All</option>${b.map(x=>`<option ${FILT.brand===x?'selected':''}>${esc(x)}</option>`).join("")}</select></label>
+    <label>Geo<select id="f-geo"><option value="">All</option>${["UAE","KSA"].map(x=>`<option ${FILT.geo===x?'selected':''}>${x}</option>`).join("")}</select></label>
+    <label>Status<select id="f-status"><option value="">All</option>${["OOS","Reorder","Overstock","Healthy","No demand"].map(x=>`<option ${FILT.status===x?'selected':''}>${x}</option>`).join("")}</select></label>
+    <label style="flex:1;min-width:160px">Search SKU / name<input id="f-q" value="${esc(FILT.q)}" placeholder="BH-0001 or product name"/></label>`;
+  const v={overview:vOverview,inventory:vInventory,reorder:vReorder,allocation:vAllocation,overstock:vOverstock}[TAB];
+  document.getElementById("main").innerHTML=v();
+  wire();
+}
+
+function vOverview(){
+  const o=DATA.overview||{}, mix=o.status_mix||{}, tot=Object.values(mix).reduce((a,b)=>a+b,0)||1;
+  const cols={OOS:"--oos",Reorder:"--reorder",Overstock:"--over",Healthy:"--healthy","No demand":"--nodemand"};
+  const seg=Object.entries(mix).map(([k,v])=>`<span style="width:${100*v/tot}%;background:var(${cols[k]||'--line'})" title="${k}: ${v}"></span>`).join("");
+  const leg=Object.entries(mix).map(([k,v])=>`<span><i style="background:var(${cols[k]||'--line'})"></i>${k} ${v}</span>`).join("");
+  const d=DATA.dormant_agg||{};
+  return `<div class="kpis">
+    <div class="kpi bad"><div class="n">${num(o.oos)}</div><div class="l">Out of stock</div><div class="s">SKU×geo with demand, zero stock</div></div>
+    <div class="kpi warn"><div class="n">${num(o.reorder)}</div><div class="l">To reorder</div><div class="s">${num(o.reorder_units)} units · <span class="commit-now">${num(o.commit_now)} commit now</span></div></div>
+    <div class="kpi over"><div class="n">${num(o.overstock)}</div><div class="l">Overstock</div><div class="s">${num(o.overstock_units)} units held long</div></div>
+    <div class="kpi"><div class="n">${num(d.count)}</div><div class="l">Dormant (folded)</div><div class="s">${num(d.units)} units, no recent demand</div></div>
+  </div>
+  <div class="card"><div class="card-h">Portfolio status mix</div><div style="padding:16px">
+    <div class="bar">${seg}</div><div class="legend">${leg}</div></div></div>
+  <div class="card"><div class="card-h">Reorder — commit now</div>${tbl((DATA.reorder||[]).filter(r=>r.commit==="COMMIT NOW"),INV_COLS,"Nothing to commit today.")}</div>`;
+}
+
+const INV_COLS=[
+ {t:"SKU",k:"iid",l:1},{t:"Product",k:"name",l:1},{t:"Brand",k:"brand",l:1},{t:"Geo",k:"geo",l:1},
+ {t:"Tag",k:"tag"},{t:"DRR",k:"drr"},{t:"Prod",k:"prod"},{t:"→Hub",k:"it_hub"},{t:"Hub",k:"hub"},
+ {t:"→Ch",k:"it_chan"},{t:"Chan",k:"chan"},{t:"Total",k:"total"},{t:"DOC",k:"doc"},{t:"Need",k:"net"},
+ {t:"Mode",k:"mode",l:1},{t:"Commit",k:"commit",l:1},{t:"Status",k:"status",l:1}];
+
+function cell(r,c){
+  const v=r[c.k];
+  if(c.k==="status") return `<td class="l"><span class="pill ${pillCls(v)}">${esc(v)}</span></td>`;
+  if(c.k==="commit") return `<td class="l ${v==='COMMIT NOW'?'commit-now':''}">${esc(v||"—")}</td>`;
+  if(c.k==="tag") return `<td><span class="tag">${esc(v||"")}</span></td>`;
+  if(c.k==="name") return `<td class="l name" title="${esc(v)}">${esc(v||"")}</td>`;
+  if(c.l) return `<td class="l">${esc(v||"—")}</td>`;
+  return `<td>${num(v)}</td>`;
+}
+function tbl(rows,cols,emptyMsg){
+  rows=sortRows(rows);
+  if(!rows.length) return `<div class="empty">${emptyMsg||"No rows."}</div>`;
+  return `<div class="tbl-wrap"><table><thead>${th(cols)}</thead><tbody>${
+    rows.map(r=>"<tr>"+cols.map(c=>cell(r,c)).join("")+"</tr>").join("")}</tbody></table></div>`;
+}
+function vInventory(){
+  const rows=allRows().filter(pass);
+  return `<div class="card"><div class="card-h">Position across waypoints <span class="cnt">${rows.length} SKU×geo · Prod → →Hub → Hub → →Ch → Chan</span></div>${tbl(rows,INV_COLS)}</div>`;
+}
+function vReorder(){
+  const r=(DATA.reorder||[]).filter(pass);
+  const AR=(DATA.arrivals||[]).filter(a=>!FILT.geo||a.geo===FILT.geo);
+  const ac=[{t:"SKU",k:"iid",l:1},{t:"Product",k:"name",l:1},{t:"Geo",k:"geo",l:1},{t:"DOC",k:"doc"},{t:"Stockout",k:"stockout",l:1},{t:"Next ETA",k:"next_eta",l:1},{t:"Verdict",k:"verdict",l:1}];
+  return `<div class="card"><div class="card-h">Reorder list <span class="cnt">${r.length}</span></div>${tbl(r,INV_COLS)}</div>
+    <div class="card"><div class="card-h">Stockout vs incoming arrival <span class="cnt">${AR.length}</span></div>${
+      tbl(AR,ac,"No at-risk SKUs with a stockout date.")}</div>`;
+}
+function vAllocation(){
+  const a=(DATA.allocation||[]).filter(x=>(!FILT.brand||x.brand===FILT.brand)&&(!FILT.geo||x.geo===FILT.geo)&&(!FILT.q||(x.iid||"").toLowerCase().includes(FILT.q.toLowerCase())));
+  const cols=[{t:"SKU",k:"iid",l:1},{t:"Brand",k:"brand",l:1},{t:"Geo",k:"geo",l:1},{t:"Channel",k:"channel",l:1},{t:"Channel DRR",k:"channel_drr"},{t:"Suggested send",k:"suggested"}];
+  return `<div class="card"><div class="card-h">Hub → Channel — suggested moves <span class="cnt">${a.length} · priority: Noon Mins → Core → Amazon → FBN → Namshi</span></div>${
+    tbl(a,cols,"No allocation suggestions (hubs empty or no channel demand).")}</div>`;
+}
+function vOverstock(){
+  const o=(DATA.overstock||[]).filter(pass);
+  return `<div class="card"><div class="card-h">Overstock — holding beyond max cover <span class="cnt">${o.length}</span></div>${tbl(o,INV_COLS,"No overstock flagged.")}</div>`;
+}
+
+function wire(){
+  document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>{TAB=t.dataset.t;SORT={key:null,dir:-1};render();});
+  const bind=(id,k)=>{const el=document.getElementById(id);if(el)el.onchange=el.oninput=()=>{FILT[k]=el.value;render();};};
+  bind("f-brand","brand");bind("f-geo","geo");bind("f-status","status");bind("f-q","q");
+  document.querySelectorAll("th[data-k]").forEach(h=>{if(h.dataset.k)h.onclick=()=>{
+    if(SORT.key===h.dataset.k)SORT.dir*=-1;else{SORT.key=h.dataset.k;SORT.dir=-1;}render();};});
+}
+document.getElementById("refresh").onclick=load;
+load();
+</script>
+</body>
+</html>
