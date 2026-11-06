@@ -89,7 +89,8 @@ code{background:rgba(125,125,125,.12);padding:1px 5px;border-radius:4px;font-siz
 .st-InTransit{background:rgba(14,116,144,.14);color:var(--blue)}
 .st-Scheduled{background:rgba(156,163,175,.18);color:var(--nodemand)}
 .st-Arrived{background:rgba(79,70,229,.14);color:var(--indigo)}
-.st-Partial{background:rgba(180,83,9,.16);color:var(--warn)}
+.st-UnderGRN{background:rgba(180,83,9,.16);color:var(--warn)}
+.st-Planned{background:rgba(156,163,175,.18);color:var(--nodemand)}
 .st-Delivered{background:rgba(4,120,87,.14);color:var(--good)}
 .st-GRNd{background:rgba(4,120,87,.14);color:var(--good)}
 .st-RTO{background:rgba(220,38,38,.12);color:var(--bad)}
@@ -175,7 +176,7 @@ function render(){
     F.innerHTML=`
     <label>Brand<select id="f-brand"><option value="">All</option>${b.map(x=>`<option ${FILT.brand===x?'selected':''}>${esc(x)}</option>`).join("")}</select></label>
     <label>Geo<select id="f-geo"><option value="">All</option>${["UAE","KSA","Qatar"].map(x=>`<option ${FILT.geo===x?'selected':''}>${x}</option>`).join("")}</select></label>
-    <label>Stage<select id="f-stage"><option value="">All</option>${["Scheduled","In Transit","Arrived","Partial","Delivered","GRN'd","RTO"].map(x=>`<option ${FILT.stage===x?'selected':''}>${x}</option>`).join("")}</select></label>
+    <label>Status<select id="f-stage"><option value="">All</option>${["Planned","Scheduled","In Transit","Arrived","Under GRN","Delivered","RTO"].map(x=>`<option ${FILT.stage===x?'selected':''}>${x}</option>`).join("")}</select></label>
     <label>Delay<select id="f-delay"><option value="">All</option>${["Delayed","On-time"].map(x=>`<option ${FILT.delay===x?'selected':''}>${x}</option>`).join("")}</select></label>
     <label style="flex:1;min-width:160px">Search invoice / SKU / product<input id="f-q" value="${esc(FILT.q)}" placeholder="ROMPBH013 or BH-0011 or product"/></label>`;
   } else {
@@ -298,7 +299,7 @@ function dispShips(){
   return s.filter(x=>{
     if(FILT.brand && x.Brand!==FILT.brand) return false;
     if(FILT.geo && x.Geo!==FILT.geo) return false;
-    if(FILT.stage && (x.Stage||"")!==FILT.stage) return false;
+    if(FILT.stage && (x.Effective_Status||"")!==FILT.stage) return false;
     if(FILT.delay && (x.Delay_Flag||"On-time")!==FILT.delay) return false;
     if(q){
       const inHdr=(x.Invoice_No||"").toLowerCase().includes(q)||(x.Brand||"").toLowerCase().includes(q)||(x.To_Facility||"").toLowerCase().includes(q);
@@ -326,10 +327,11 @@ function expandDetail(s){
     <div>
       <div class="card-h" style="border:none;padding:0 0 8px">Milestones & delays</div>
       <div class="mile">
-        ${dirRow("Departure","ETD "+esc(s.ETD||"—")+"  ·  ATD "+esc(s.ATD||"—"),s.Departure_Delay)}
-        ${dirRow("Arrival","ETA "+esc(s.Effective_ETA||s.ETA||"—")+"  ·  ATA "+esc(s.Manual_ATA||s.ATA||"—"),s.Arrival_Delay)}
-        ${dirRow("GRN (hub)","Est "+esc(s.Est_Delivery||"—")+"  ·  GRN "+esc(s.Manual_GRN_Date||"—"),s.GRN_Delay)}
+        ${dirRow("Departure","ETD "+esc(s.Manual_ETD||s.ETD||"—")+"  ·  ATD "+esc(s.Manual_ATD||s.ATD||"—"),s.Departure_Delay)}
+        ${dirRow("Arrival","ETA "+esc(s.Manual_ETA||s.ETA||"—")+"  ·  ATA "+esc(s.Manual_ATA||s.ATA||"—"),s.Arrival_Delay)}
+        ${dirRow("GRN (hub)","Est "+esc(s.Est_Delivery||"—")+"  ·  GRN "+esc(s.Manual_GRN_Date||s._eff_grn||"—"),s.GRN_Delay)}
         ${dirRow("In transit",s.Days_In_Transit!=null?s.Days_In_Transit+" days (open)":"—","")}
+        ${dirRow("AST date",s.AST_Date||"—","")}
         ${dirRow("Refs",[s.Ref_Container,s.Ref_HBL].filter(Boolean).join("  ·  ")||"—","")}
         ${s.Manual_Remarks?dirRow("Remarks",s.Manual_Remarks,""):""}
       </div>
@@ -344,12 +346,13 @@ function vDispatch(){
     <div class="kpi"><div class="n">${num(dp.total)}</div><div class="l">ME shipments</div><div class="s">factory → hub / channel</div></div>
     <div class="kpi blue"><div class="n">${num(dp.open)}</div><div class="l">Open</div><div class="s">not delivered / RTO</div></div>
     <div class="kpi"><div class="n">${num(dp.in_transit)}</div><div class="l">In transit</div><div class="s">departed, not arrived</div></div>
-    <div class="kpi warn"><div class="n">${num(dp.partial)}</div><div class="l">Partial</div><div class="s">some units pending</div></div>
+    <div class="kpi"><div class="n">${num(dp.arrived)}</div><div class="l">Arrived</div><div class="s">landed, awaiting GRN</div></div>
+    <div class="kpi warn"><div class="n">${num(dp.under_grn)}</div><div class="l">Under GRN</div><div class="s">GRN date upcoming</div></div>
     <div class="kpi bad"><div class="n">${num(dp.delayed)}</div><div class="l">Delayed</div><div class="s">late or past ETA</div></div>
   </div>`;
   const head=`<tr>
     <th class="l">Invoice</th><th class="l">Brand(s)</th><th class="l">To</th><th class="l">Type</th>
-    <th class="l">Geo</th><th class="l">Mode</th><th>Qty</th><th class="l">Stage</th><th class="l">ETA</th><th class="l">Delay</th></tr>`;
+    <th class="l">Geo</th><th class="l">Mode</th><th>Qty</th><th class="l">Status</th><th class="l">ETA</th><th class="l">AST date</th><th class="l">Delay</th></tr>`;
   const body = rows.length ? rows.map((s,i)=>{
     const open=OPEN[s.Invoice_No];
     const main=`<tr class="exrow ${open?'open':''}" data-inv="${esc(s.Invoice_No)}">
@@ -360,12 +363,13 @@ function vDispatch(){
       <td class="l">${esc(s.Geo||"—")}</td>
       <td class="l">${modeIcon(s.Mode)} ${esc(s.Mode||"—")}</td>
       <td>${num(Number(s.Dispatch_Qty)||s.Dispatch_Qty)}</td>
-      <td class="l"><span class="st ${stCls(s.Stage)}">${esc(s.Stage||"—")}</span></td>
-      <td class="l">${esc(s.Effective_ETA||s.ETA||"—")}</td>
+      <td class="l"><span class="st ${stCls(s.Effective_Status)}">${esc(s.Effective_Status||"—")}</span></td>
+      <td class="l">${esc(s.Manual_ETA||s.ETA||"—")}</td>
+      <td class="l">${esc(s.AST_Date||"—")}</td>
       ${delayCell(s)}</tr>`;
-    const det=open?`<tr class="exp"><td colspan="10">${expandDetail(s)}</td></tr>`:"";
+    const det=open?`<tr class="exp"><td colspan="11">${expandDetail(s)}</td></tr>`:"";
     return main+det;
-  }).join("") : `<tr><td colspan="10"><div class="empty">No shipments match these filters.</div></td></tr>`;
+  }).join("") : `<tr><td colspan="11"><div class="empty">No shipments match these filters.</div></td></tr>`;
   return kpis+`<div class="card"><div class="card-h">Shipments <span class="cnt">${rows.length} shown · click a row for SKU detail & milestones</span></div>
     <div class="tbl-wrap"><table><thead>${head}</thead><tbody>${body}</tbody></table></div></div>`;
 }
